@@ -1,5 +1,11 @@
 var supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 
+const isSecure = location.protocol.includes("https");
+const wsProtocol = isSecure ? "wss" : "ws";
+const wsHost = window.location.host;
+const wsPort = 9000;
+const wsUrl = `${wsProtocol}://${wsHost}:${wsPort}`;
+
 class Canvas {
   constructor() {
     this.canvas = document.getElementById("shared-canvas");
@@ -95,9 +101,6 @@ class Canvas {
 
 const start = () => {
   const canvas = new Canvas();
-
-    const wsUrl = `ws://${window.location.host}:9000`;
-  // const wsUrl = "ws://192.168.1.142:9000";
 
   const ws = new WebSocket(wsUrl);
 
