@@ -41,4 +41,4 @@ wsServer.on("connection", (connection) => {
   });
 });
 
-httpServer.listen(3000);
+httpServer.listen(80);
