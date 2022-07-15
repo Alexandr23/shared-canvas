@@ -1,6 +1,16 @@
 {
+  "name": "shared-canvas",
+  "version": "1.0.0",
+  "description": "Shared Canvas Application",
+  "main": "main.js",
   "dependencies": {
     "ws": "^8.8.0"
   },
-  "type": "module"
+  "scripts": {
+    "start": "node main.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": "14.x"
+  }
 }
