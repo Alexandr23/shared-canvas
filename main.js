@@ -21,7 +21,7 @@ const httpServer = http.createServer((req, res) => {
   });
 });
 
-const wsServer = new WebSocketServer({ port: 9000 });
+const wsServer = new WebSocketServer({ server: httpServer });
 
 wsServer.on("connection", (connection) => {
   console.log("ws: connected");

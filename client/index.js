@@ -4,7 +4,7 @@ const isSecure = location.protocol.includes("https");
 const wsProtocol = isSecure ? "wss" : "ws";
 const wsHost = window.location.host;
 const wsPort = 9000;
-const wsUrl = `${wsProtocol}://${wsHost}:${wsPort}`;
+const wsUrl = `${wsProtocol}://${wsHost}`;
 
 class Canvas {
   constructor() {
