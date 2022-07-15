@@ -2,6 +2,8 @@ import { WebSocketServer } from "ws";
 import http from "http";
 import fs from "fs";
 
+const PORT = process.env.PORT || 3000;
+
 const httpServer = http.createServer((req, res) => {
   const isJsFile = req.url.includes(".js");
   const filePath = isJsFile ? `.${req.url}` : "./index.html";
@@ -41,4 +43,4 @@ wsServer.on("connection", (connection) => {
   });
 });
 
-httpServer.listen(80);
+httpServer.listen(PORT);
