@@ -99,6 +99,10 @@ class Canvas {
     this.ctx.stroke();
   };
 
+  drawLines = (lines) => {
+    lines.forEach(this.drawLine);
+  };
+
   onDraw = (subscriber) => {
     this.subscribers.add(subscriber);
 
@@ -106,11 +110,16 @@ class Canvas {
       this.subscribers.delete(subscriber);
     };
   };
+
+  clear = () => {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  };
 }
 
 class App {
   constructor() {
     this.user = null;
+    this.data = null;
   }
 
   init = () => {
@@ -120,8 +129,8 @@ class App {
     this.ws = new WebSocket(wsUrl);
     this.ws.addEventListener("message", this.handleWsMessage);
 
-    // this.buttonClear = document.getElementById('button-clear')
-    // this.buttonClear.addEventListener('click', )
+    this.buttonClear = document.getElementById("button-clear");
+    this.buttonClear?.addEventListener("click", this.handleButtonClearClick);
   };
 
   handleWsMessage = (event) => {
@@ -130,31 +139,61 @@ class App {
     const message = JSON.parse(event.data);
 
     if (message.type === MESSAGE_TYPE.INIT) {
-      this.user = message.user;
-
-      this.canvas.init({ color: message.user.color });
-
-      Object.values(message.data.lines).forEach((lines) => {
-        lines.forEach((line) => {
-          this.canvas.drawLine(line);
-        });
-      });
+      this.handleWsMessageInit(message);
     } else if (message.type === MESSAGE_TYPE.DRAW) {
-      this.canvas.drawLine(message.line);
+      this.handleWsMessageDraw(message);
+    } else if (message.type === MESSAGE_TYPE.CLEAR) {
+      this.handleWsMessageClear(message);
     }
   };
 
   handleDraw = (line) => {
+    this.data.lines[this.user.id] = this.data.lines[this.user.id] ?? [];
+    this.data.lines[this.user.id].push(line);
+
     this.ws.send(
       JSON.stringify({ type: MESSAGE_TYPE.DRAW, userId: this.user.id, line })
     );
   };
 
-  // handleButtonClearClick = () => {
-  //   this.ws.send(
-  //     JSON.stringify({ type: MESSAGE_TYPE.CLEAR, userId: this.user.id, line })
-  //   );
-  // }
+  handleButtonClearClick = () => {
+    this.clear(this.user.id);
+
+    this.ws.send(
+      JSON.stringify({ type: MESSAGE_TYPE.CLEAR, userId: this.user.id })
+    );
+  };
+
+  handleWsMessageInit = (message) => {
+    this.user = message.user;
+    this.data = message.data;
+
+    this.canvas.init({ color: message.user.color });
+
+    Object.values(message.data.lines).forEach((lines) => {
+      this.canvas.drawLines(lines);
+    });
+  };
+
+  handleWsMessageDraw = (message) => {
+    this.data.lines[message.userId] = this.data.lines[message.userId] ?? [];
+    this.data.lines[message.userId].push(message.line);
+
+    this.canvas.drawLine(message.line);
+  };
+
+  handleWsMessageClear = ({ userId }) => {
+    this.clear(userId);
+  };
+
+  clear = (userId) => {
+    this.data.lines[userId] = [];
+
+    this.canvas.clear();
+    Object.values(this.data.lines).forEach((lines) => {
+      this.canvas.drawLines(lines);
+    });
+  };
 }
 
 window.addEventListener("load", function () {
