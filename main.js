@@ -1,8 +1,30 @@
 import { WebSocketServer } from "ws";
 import http from "http";
 import fs from "fs";
+import { v4 as uuidv4 } from "uuid";
 
 const PORT = process.env.PORT || 3000;
+
+const MESSAGE_TYPE = {
+  INIT: "init",
+  DRAW: "draw",
+  CLEAR: "clear",
+};
+
+// In memory DB
+const DB = {
+  users: {},
+  lines: {},
+};
+
+const getRandomHexColor = () => {
+  return "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0");
+};
+
+const generateUser = () => ({
+  id: uuidv4(),
+  color: getRandomHexColor(),
+});
 
 const httpServer = http.createServer((req, res) => {
   const isJsFile = req.url.includes(".js");
@@ -26,21 +48,40 @@ const wsServer = new WebSocketServer({ server: httpServer });
 wsServer.on("connection", (connection) => {
   console.log("ws: connected");
 
+  const user = generateUser();
+
+  DB.users[user.id] = user;
+  DB.lines[user.id] = [];
+
   connection.on("close", () => {
     console.log("ws: disconnected");
   });
 
-  connection.on("message", (message) => {
-    const data = JSON.parse(message);
+  connection.on("message", (data) => {
+    const message = JSON.parse(data);
 
-    console.log("ws: message", data);
+    if (message.type === MESSAGE_TYPE.DRAW) {
+      DB.lines[user.id].push(message.line);
+    } else if (message.type === MESSAGE_TYPE.CLEAR) {
+      DB.lines[user.id] = [];
+    }
+
+    console.log("ws: message", message);
 
     wsServer.clients.forEach((client) => {
       if (client !== connection && client.readyState === 1) {
-        client.send(JSON.stringify(data));
+        client.send(JSON.stringify(message));
       }
     });
   });
+
+  connection.send(
+    JSON.stringify({
+      type: MESSAGE_TYPE.INIT,
+      user,
+      data: DB,
+    })
+  );
 });
 
 httpServer.listen(PORT);

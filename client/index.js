@@ -6,6 +6,12 @@ const wsHost = window.location.host;
 const wsPort = 9000;
 const wsUrl = `${wsProtocol}://${wsHost}`;
 
+const MESSAGE_TYPE = {
+  INIT: "init",
+  DRAW: "draw",
+  CLEAR: "clear",
+};
+
 class Canvas {
   constructor() {
     this.canvas = document.getElementById("shared-canvas");
@@ -18,6 +24,11 @@ class Canvas {
     this.currPoint = null;
 
     this.adjustSize();
+  }
+
+  init({ color }) {
+    this.color = color;
+
     this.addListeners();
   }
 
@@ -61,7 +72,7 @@ class Canvas {
     }
 
     const point = this.getPointFromEvent(event);
-    const line = { start: this.currPoint, end: point };
+    const line = { start: this.currPoint, end: point, color: this.color };
 
     this.currPoint = point;
 
@@ -77,9 +88,9 @@ class Canvas {
     this.canvas.height = window.innerHeight;
   };
 
-  drawLine = ({ start, end }) => {
+  drawLine = ({ start, end, color }) => {
     this.ctx.lineWidth = this.lineWidth;
-    this.ctx.strokeStyle = this.strokeStyle;
+    this.ctx.strokeStyle = color;
     this.ctx.lineCap = "round";
 
     this.ctx.beginPath();
@@ -97,24 +108,56 @@ class Canvas {
   };
 }
 
-const start = () => {
-  const canvas = new Canvas();
+class App {
+  constructor() {
+    this.user = null;
+  }
 
-  const ws = new WebSocket(wsUrl);
+  init = () => {
+    this.canvas = new Canvas();
+    this.canvas.onDraw(this.handleDraw);
 
-  ws.addEventListener("message", (event) => {
+    this.ws = new WebSocket(wsUrl);
+    this.ws.addEventListener("message", this.handleWsMessage);
+
+    // this.buttonClear = document.getElementById('button-clear')
+    // this.buttonClear.addEventListener('click', )
+  };
+
+  handleWsMessage = (event) => {
     console.log(event);
 
-    const line = JSON.parse(event.data);
+    const message = JSON.parse(event.data);
 
-    canvas.drawLine(line);
-  });
+    if (message.type === MESSAGE_TYPE.INIT) {
+      this.user = message.user;
 
-  canvas.onDraw((point) => {
-    ws.send(JSON.stringify(point));
-  });
-};
+      this.canvas.init({ color: message.user.color });
+
+      Object.values(message.data.lines).forEach((lines) => {
+        lines.forEach((line) => {
+          this.canvas.drawLine(line);
+        });
+      });
+    } else if (message.type === MESSAGE_TYPE.DRAW) {
+      this.canvas.drawLine(message.line);
+    }
+  };
+
+  handleDraw = (line) => {
+    this.ws.send(
+      JSON.stringify({ type: MESSAGE_TYPE.DRAW, userId: this.user.id, line })
+    );
+  };
+
+  // handleButtonClearClick = () => {
+  //   this.ws.send(
+  //     JSON.stringify({ type: MESSAGE_TYPE.CLEAR, userId: this.user.id, line })
+  //   );
+  // }
+}
 
 window.addEventListener("load", function () {
-  start();
+  const app = new App();
+  app.init();
 });
