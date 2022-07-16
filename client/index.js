@@ -11,9 +11,11 @@ class Canvas {
     this.canvas = document.getElementById("shared-canvas");
     this.ctx = this.canvas.getContext("2d");
 
-    this.size = 5;
-    this.isDrawing = false;
+    this.lineWidth = 5;
+    this.strokeStyle = "#ff1b41";
     this.subscribers = new Set();
+
+    this.currPoint = null;
 
     this.adjustSize();
     this.addListeners();
@@ -44,35 +46,30 @@ class Canvas {
   };
 
   handleMouseDown = (event) => {
-    this.isDrawing = true;
-
-    const point = this.getPointFromEvent(event);
-
-    this.drawPoint(point);
-
-    this.subscribers.forEach((subscriber) => {
-      subscriber(point);
-    });
+    this.currPoint = this.getPointFromEvent(event);
   };
 
   handleMouseUp = () => {
-    this.isDrawing = false;
+    this.currPoint = null;
   };
 
   handleMouseMove = (event) => {
-    if (!this.isDrawing) {
+    event.preventDefault();
+
+    if (!this.currPoint) {
       return;
     }
 
     const point = this.getPointFromEvent(event);
+    const line = { start: this.currPoint, end: point };
 
-    this.drawPoint(point);
+    this.currPoint = point;
+
+    this.drawLine(line);
 
     this.subscribers.forEach((subscriber) => {
-      subscriber(point);
+      subscriber(line);
     });
-
-    event.preventDefault();
   };
 
   adjustSize = () => {
@@ -80,14 +77,15 @@ class Canvas {
     this.canvas.height = window.innerHeight;
   };
 
-  drawPoint = ({ x, y }) => {
-    this.ctx.fillStyle = "#ff1b41";
-    this.ctx.fillRect(
-      x - this.size / 2,
-      y - this.size / 2,
-      this.size,
-      this.size
-    );
+  drawLine = ({ start, end }) => {
+    this.ctx.lineWidth = this.lineWidth;
+    this.ctx.strokeStyle = this.strokeStyle;
+    this.ctx.lineCap = "round";
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(start.x, start.y);
+    this.ctx.lineTo(end.x, end.y);
+    this.ctx.stroke();
   };
 
   onDraw = (subscriber) => {
@@ -107,9 +105,9 @@ const start = () => {
   ws.addEventListener("message", (event) => {
     console.log(event);
 
-    const point = JSON.parse(event.data);
+    const line = JSON.parse(event.data);
 
-    canvas.drawPoint(point);
+    canvas.drawLine(line);
   });
 
   canvas.onDraw((point) => {
