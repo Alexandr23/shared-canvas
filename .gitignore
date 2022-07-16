@@ -1,0 +1,14 @@
+# Dependency directory
+node_modules
+
+# VsCode
+.vscode
+
+# build
+dist
+
+#yarn
+yarn-error.log
+
+### macOS template
+*.DS_Store
