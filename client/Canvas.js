@@ -1,15 +1,18 @@
 const supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 
+const NORMALIZED_SIZE = 1000;
+const WIDTH = 5;
+
 export class Canvas {
   constructor() {
     this.canvas = document.getElementById("shared-canvas");
     this.ctx = this.canvas.getContext("2d");
 
-    this.lineWidth = 5;
-    this.strokeStyle = "#ff1b41";
     this.subscribers = new Set();
 
     this.currPoint = null;
+    this.boundingClientRect = null;
+    this.scale = 1;
 
     this.adjustSize();
   }
@@ -33,14 +36,16 @@ export class Canvas {
   };
 
   getPointFromEvent = (event) => {
+    const { left, top } = this.boundingClientRect;
+
     return supportsTouch
       ? {
-          x: event.touches[0]?.pageX,
-          y: event.touches[0]?.pageY,
+          x: event.touches[0]?.pageX - left,
+          y: event.touches[0]?.pageY - top,
         }
       : {
-          x: event.x,
-          y: event.y,
+          x: event.x - left,
+          y: event.y - top,
         };
   };
 
@@ -61,23 +66,35 @@ export class Canvas {
 
     const point = this.getPointFromEvent(event);
     const line = { start: this.currPoint, end: point, color: this.color };
+    const normalizedLine = this.normalizeLine(line);
 
     this.currPoint = point;
 
-    this.drawLine(line);
+    this.drawLine(line, false);
 
     this.subscribers.forEach((subscriber) => {
-      subscriber(line);
+      subscriber(normalizedLine);
     });
   };
 
   adjustSize = () => {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const parent = this.canvas.parentNode;
+    const size = Math.min(parent.clientWidth, parent.clientHeight);
+
+    this.canvas.width = size;
+    this.canvas.height = size;
+
+    this.boundingClientRect = this.canvas.getBoundingClientRect();
+    this.scale = size / NORMALIZED_SIZE;
   };
 
-  drawLine = ({ start, end, color }) => {
-    this.ctx.lineWidth = this.lineWidth;
+  drawLine = (line, shouldScale = true) => {
+    const scaledLine = shouldScale ? this.denormalizeLine(line) : line;
+    const width = WIDTH * this.scale;
+
+    const { start, end, color } = scaledLine;
+
+    this.ctx.lineWidth = width;
     this.ctx.strokeStyle = color;
     this.ctx.lineCap = "round";
 
@@ -88,7 +105,7 @@ export class Canvas {
   };
 
   drawLines = (lines) => {
-    lines.forEach(this.drawLine);
+    lines.forEach((line) => this.drawLine(line));
   };
 
   onDraw = (subscriber) => {
@@ -101,5 +118,29 @@ export class Canvas {
 
   clear = () => {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  };
+
+  normalizePoint = (point) => {
+    return { x: point.x / this.scale, y: point.y / this.scale };
+  };
+
+  denormalizePoint = (point) => {
+    return { x: point.x * this.scale, y: point.y * this.scale };
+  };
+
+  normalizeLine = (line) => {
+    return {
+      ...line,
+      start: this.normalizePoint(line.start),
+      end: this.normalizePoint(line.end),
+    };
+  };
+
+  denormalizeLine = (line) => {
+    return {
+      ...line,
+      start: this.denormalizePoint(line.start),
+      end: this.denormalizePoint(line.end),
+    };
   };
 }

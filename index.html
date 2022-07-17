@@ -8,8 +8,34 @@
     <script type="module" src="./client/index.js"></script>
 
     <style>
+      html,
       body {
+        width: 100%;
+        height: 100%;
         margin: 0;
+        padding: 0;
+      }
+
+      .canvas-wrapper {
+        width: 100%;
+        height: 100%;
+        background-color: #cecece;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+
+      .canvas-box {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      canvas {
+        background-color: #ffffff;
+        box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+        cursor: pointer;
       }
 
       .buttons {
@@ -23,7 +49,11 @@
   </head>
 
   <body>
-    <canvas id="shared-canvas" width="500" height="500"></canvas>
+    <div class="canvas-wrapper">
+      <div class="canvas-box">
+        <canvas id="shared-canvas"></canvas>
+      </div>
+    </div>
 
     <div class="buttons">
       <button id="button-clear">Clear</button>

@@ -70,7 +70,7 @@ wsServer.on("connection", (connection) => {
       DB.lines = {};
     }
 
-    console.log("ws: message", message);
+    // console.log("ws: message", message);
 
     wsServer.clients.forEach((client) => {
       if (client !== connection && client.readyState === 1) {

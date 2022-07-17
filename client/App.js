@@ -37,7 +37,7 @@ export class App {
   };
 
   handleWsMessage = (event) => {
-    console.log(event);
+    // console.log(event);
 
     const message = JSON.parse(event.data);
 
@@ -118,4 +118,3 @@ export class App {
     this.canvas.clear();
   };
 }
-
