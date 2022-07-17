@@ -9,6 +9,7 @@ const MESSAGE_TYPE = {
   INIT: "init",
   DRAW: "draw",
   CLEAR: "clear",
+  CLEAR_ALL: "clear-all",
 };
 
 // In memory DB
@@ -61,9 +62,12 @@ wsServer.on("connection", (connection) => {
     const message = JSON.parse(data);
 
     if (message.type === MESSAGE_TYPE.DRAW) {
+      DB.lines[user.id] = DB.lines[user.id] ?? [];
       DB.lines[user.id].push(message.line);
     } else if (message.type === MESSAGE_TYPE.CLEAR) {
       DB.lines[user.id] = [];
+    } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
+      DB.lines = {};
     }
 
     console.log("ws: message", message);

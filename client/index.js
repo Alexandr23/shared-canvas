@@ -10,6 +10,7 @@ const MESSAGE_TYPE = {
   INIT: "init",
   DRAW: "draw",
   CLEAR: "clear",
+  CLEAR_ALL: "clear-all",
 };
 
 class Canvas {
@@ -131,6 +132,12 @@ class App {
 
     this.buttonClear = document.getElementById("button-clear");
     this.buttonClear?.addEventListener("click", this.handleButtonClearClick);
+
+    this.buttonClearAll = document.getElementById("button-clear-all");
+    this.buttonClearAll?.addEventListener(
+      "click",
+      this.handleButtonClearAllClick
+    );
   };
 
   handleWsMessage = (event) => {
@@ -144,6 +151,8 @@ class App {
       this.handleWsMessageDraw(message);
     } else if (message.type === MESSAGE_TYPE.CLEAR) {
       this.handleWsMessageClear(message);
+    } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
+      this.handleWsMessageClearAll(message);
     }
   };
 
@@ -161,6 +170,14 @@ class App {
 
     this.ws.send(
       JSON.stringify({ type: MESSAGE_TYPE.CLEAR, userId: this.user.id })
+    );
+  };
+
+  handleButtonClearAllClick = () => {
+    this.clearAll();
+
+    this.ws.send(
+      JSON.stringify({ type: MESSAGE_TYPE.CLEAR_ALL, userId: this.user.id })
     );
   };
 
@@ -182,8 +199,12 @@ class App {
     this.canvas.drawLine(message.line);
   };
 
-  handleWsMessageClear = ({ userId }) => {
-    this.clear(userId);
+  handleWsMessageClear = (message) => {
+    this.clear(message.userId);
+  };
+
+  handleWsMessageClearAll = () => {
+    this.clearAll();
   };
 
   clear = (userId) => {
@@ -193,6 +214,12 @@ class App {
     Object.values(this.data.lines).forEach((lines) => {
       this.canvas.drawLines(lines);
     });
+  };
+
+  clearAll = () => {
+    this.data.lines = {};
+
+    this.canvas.clear();
   };
 }
 
