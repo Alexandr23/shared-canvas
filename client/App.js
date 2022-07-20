@@ -34,6 +34,12 @@ export class App {
       "click",
       this.handleButtonClearAllClick
     );
+
+    this.buttonDownload = document.getElementById("button-download");
+    this.buttonDownload?.addEventListener(
+      "click",
+      this.handleButtonDownloadClick
+    );
   };
 
   handleWsMessage = (event) => {
@@ -75,6 +81,17 @@ export class App {
     this.ws.send(
       JSON.stringify({ type: MESSAGE_TYPE.CLEAR_ALL, userId: this.user.id })
     );
+  };
+
+  handleButtonDownloadClick = () => {
+    const image = this.canvas.canvas
+      .toDataURL("image/png", 1.0)
+      .replace("image/png", "image/octet-stream");
+    const link = document.createElement("a");
+    link.download = "shared-canvas.png";
+    link.href = image;
+    link.click();
+    link.remove();
   };
 
   handleWsMessageInit = (message) => {
