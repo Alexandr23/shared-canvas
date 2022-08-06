@@ -1,10 +1,14 @@
+import { COLOR_SELECTION_EVENT } from "./ColorSelection.js";
+
 const supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 
 const NORMALIZED_SIZE = 1000;
 const WIDTH = 5;
 
 export class Canvas {
-  constructor() {
+  constructor(eventEmitter) {
+    this.eventEmitter = eventEmitter;
+
     this.canvas = document.getElementById("shared-canvas");
     this.ctx = this.canvas.getContext("2d");
 
@@ -24,6 +28,8 @@ export class Canvas {
   }
 
   addListeners = () => {
+    this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
+
     if (supportsTouch) {
       this.canvas.addEventListener("touchstart", this.handleMouseDown);
       this.canvas.addEventListener("touchend", this.handleMouseUp);
@@ -33,6 +39,10 @@ export class Canvas {
       this.canvas.addEventListener("mouseup", this.handleMouseUp);
       this.canvas.addEventListener("mousemove", this.handleMouseMove);
     }
+  };
+
+  handleColorSelection = ({ color }) => {
+    this.color = color;
   };
 
   getPointFromEvent = (event) => {

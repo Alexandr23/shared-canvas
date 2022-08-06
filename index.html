@@ -11,6 +11,10 @@
     <script type="module" src="./client/index.js"></script>
 
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       html,
       body {
         width: 100%;
@@ -24,7 +28,6 @@
         height: 100%;
         background-color: #cecece;
         padding: 10px;
-        box-sizing: border-box;
       }
 
       .canvas-box {
@@ -48,6 +51,46 @@
         display: flex;
         gap: 10px;
       }
+
+      .color-selection {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #cecece;
+      }
+
+      .color-selection__box {
+        position: relative;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        max-width: 100vh;
+        max-height: 100vw;
+        padding: 10px;
+      }
+
+      .color-selection__wrapper {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .color-selection__item {
+        aspect-ratio: 1/ 1;
+        box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .color-selection__item:hover {
+        filter: brightness(1.3);
+      }
     </style>
   </head>
 
@@ -62,6 +105,7 @@
       <button id="button-clear">Clear</button>
       <button id="button-clear-all">Clear All</button>
       <button id="button-download">Download</button>
+      <button id="button-select-color">Select Color</button>
     </div>
   </body>
 </html>

@@ -1,4 +1,6 @@
 import { Canvas } from "./Canvas.js";
+import { ColorSelection } from "./ColorSelection.js";
+import { EventEmitter } from "./EventEmitter.js";
 
 const isSecure = location.protocol.includes("https");
 const wsProtocol = isSecure ? "wss" : "ws";
@@ -20,14 +22,24 @@ export class App {
   }
 
   init = () => {
-    this.canvas = new Canvas();
+    this.eventEmitter = new EventEmitter();
+
+    this.canvas = new Canvas(this.eventEmitter);
     this.canvas.onDraw(this.handleDraw);
+
+    this.colorSelection = new ColorSelection(this.eventEmitter);
 
     this.ws = new WebSocket(wsUrl);
     this.ws.addEventListener("message", this.handleWsMessage);
 
     this.buttonClear = document.getElementById("button-clear");
     this.buttonClear?.addEventListener("click", this.handleButtonClearClick);
+
+    this.buttonSelectColor = document.getElementById("button-select-color");
+    this.buttonSelectColor?.addEventListener(
+      "click",
+      this.handleButtonSelectColorClick
+    );
 
     this.buttonClearAll = document.getElementById("button-clear-all");
     this.buttonClearAll?.addEventListener(
@@ -92,6 +104,10 @@ export class App {
     link.href = image;
     link.click();
     link.remove();
+  };
+
+  handleButtonSelectColorClick = () => {
+    this.colorSelection.open();
   };
 
   handleWsMessageInit = (message) => {
