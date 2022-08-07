@@ -1,4 +1,4 @@
-import { COLOR_SELECTION_EVENT } from "./ColorSelection.js";
+import { COLOR_SELECTION_EVENT } from "./Events.js";
 
 const supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 

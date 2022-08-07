@@ -1,6 +1,12 @@
+import { EventEmitter } from "./EventEmitter.js";
+import {
+  INIT_EVENT,
+  USERS_UPDATE_EVENT,
+  COLOR_SELECTION_EVENT,
+} from "./Events.js";
 import { Canvas } from "./Canvas.js";
 import { ColorSelection } from "./ColorSelection.js";
-import { EventEmitter } from "./EventEmitter.js";
+import { Users } from "./Users.js";
 
 const isSecure = location.protocol.includes("https");
 const wsProtocol = isSecure ? "wss" : "ws";
@@ -8,11 +14,13 @@ const wsHost = window.location.host;
 const wsPort = 9000;
 const wsUrl = `${wsProtocol}://${wsHost}`;
 
-const MESSAGE_TYPE = {
+const WS_MESSAGE_TYPE = {
   INIT: "init",
   DRAW: "draw",
   CLEAR: "clear",
   CLEAR_ALL: "clear-all",
+  USERS: "users",
+  COLOR_SELECTION: "color-selection",
 };
 
 export class App {
@@ -32,6 +40,9 @@ export class App {
     this.ws = new WebSocket(wsUrl);
     this.ws.addEventListener("message", this.handleWsMessage);
 
+    this.users = new Users(this.eventEmitter);
+
+    // DOM
     this.buttonClear = document.getElementById("button-clear");
     this.buttonClear?.addEventListener("click", this.handleButtonClearClick);
 
@@ -52,6 +63,8 @@ export class App {
       "click",
       this.handleButtonDownloadClick
     );
+
+    this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
   };
 
   handleWsMessage = (event) => {
@@ -59,14 +72,18 @@ export class App {
 
     const message = JSON.parse(event.data);
 
-    if (message.type === MESSAGE_TYPE.INIT) {
+    if (message.type === WS_MESSAGE_TYPE.INIT) {
       this.handleWsMessageInit(message);
-    } else if (message.type === MESSAGE_TYPE.DRAW) {
+    } else if (message.type === WS_MESSAGE_TYPE.DRAW) {
       this.handleWsMessageDraw(message);
-    } else if (message.type === MESSAGE_TYPE.CLEAR) {
+    } else if (message.type === WS_MESSAGE_TYPE.CLEAR) {
       this.handleWsMessageClear(message);
-    } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
+    } else if (message.type === WS_MESSAGE_TYPE.CLEAR_ALL) {
       this.handleWsMessageClearAll(message);
+    } else if (message.type === WS_MESSAGE_TYPE.USERS) {
+      this.handleWsMessageUsers(message);
+    } else if (message.type === WS_MESSAGE_TYPE.COLOR_SELECTION) {
+      this.handleWsMessageColorSelection(message);
     }
   };
 
@@ -75,7 +92,7 @@ export class App {
     this.data.lines[this.user.id].push(line);
 
     this.ws.send(
-      JSON.stringify({ type: MESSAGE_TYPE.DRAW, userId: this.user.id, line })
+      JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, userId: this.user.id, line })
     );
   };
 
@@ -83,7 +100,7 @@ export class App {
     this.clear(this.user.id);
 
     this.ws.send(
-      JSON.stringify({ type: MESSAGE_TYPE.CLEAR, userId: this.user.id })
+      JSON.stringify({ type: WS_MESSAGE_TYPE.CLEAR, userId: this.user.id })
     );
   };
 
@@ -91,7 +108,7 @@ export class App {
     this.clearAll();
 
     this.ws.send(
-      JSON.stringify({ type: MESSAGE_TYPE.CLEAR_ALL, userId: this.user.id })
+      JSON.stringify({ type: WS_MESSAGE_TYPE.CLEAR_ALL, userId: this.user.id })
     );
   };
 
@@ -119,6 +136,8 @@ export class App {
     Object.values(message.data.lines).forEach((lines) => {
       this.canvas.drawLines(lines);
     });
+
+    this.eventEmitter.emit(INIT_EVENT, message);
   };
 
   handleWsMessageDraw = (message) => {
@@ -136,6 +155,14 @@ export class App {
     this.clearAll();
   };
 
+  handleWsMessageUsers = (message) => {
+    this.eventEmitter.emit(USERS_UPDATE_EVENT, message.users);
+  };
+
+  handleWsMessageColorSelection = (message) => {
+    this.users.updateUserColor(message);
+  };
+
   clear = (userId) => {
     this.data.lines[userId] = [];
 
@@ -149,5 +176,15 @@ export class App {
     this.data.lines = {};
 
     this.canvas.clear();
+  };
+
+  handleColorSelection = ({ color }) => {
+    this.ws.send(
+      JSON.stringify({
+        type: WS_MESSAGE_TYPE.COLOR_SELECTION,
+        userId: this.user.id,
+        color,
+      })
+    );
   };
 }

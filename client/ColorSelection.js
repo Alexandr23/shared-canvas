@@ -1,3 +1,5 @@
+import { COLOR_SELECTION_EVENT } from "./Events.js";
+
 const COLORS = [
   "#C0392B",
   "#E74C3C",
@@ -16,8 +18,6 @@ const COLORS = [
   "#D35400",
   "#34495E",
 ];
-
-export const COLOR_SELECTION_EVENT = "COLOR_SELECTION_EVENT";
 
 export class ColorSelection {
   constructor(eventEmitter) {

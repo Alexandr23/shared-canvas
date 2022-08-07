@@ -10,6 +10,8 @@ const MESSAGE_TYPE = {
   DRAW: "draw",
   CLEAR: "clear",
   CLEAR_ALL: "clear-all",
+  USERS: "users",
+  COLOR_SELECTION: "color-selection",
 };
 
 // In memory DB
@@ -46,6 +48,14 @@ const httpServer = http.createServer((req, res) => {
 
 const wsServer = new WebSocketServer({ server: httpServer });
 
+wsServer.broadcast = (message, exception) => {
+  wsServer.clients.forEach((client) => {
+    if (client !== exception && client.readyState === 1) {
+      client.send(JSON.stringify(message));
+    }
+  });
+};
+
 wsServer.on("connection", (connection) => {
   console.log("ws: connected");
 
@@ -56,6 +66,13 @@ wsServer.on("connection", (connection) => {
 
   connection.on("close", () => {
     console.log("ws: disconnected");
+
+    delete DB.users[user.id];
+
+    wsServer.broadcast(
+      { type: MESSAGE_TYPE.USERS, users: DB.users },
+      connection
+    );
   });
 
   connection.on("message", (data) => {
@@ -68,15 +85,15 @@ wsServer.on("connection", (connection) => {
       DB.lines[user.id] = [];
     } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
       DB.lines = {};
+    } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
+      if (DB.users[message.userId]) {
+        DB.users[message.userId].color = message.color;
+      }
     }
 
     // console.log("ws: message", message);
 
-    wsServer.clients.forEach((client) => {
-      if (client !== connection && client.readyState === 1) {
-        client.send(JSON.stringify(message));
-      }
-    });
+    wsServer.broadcast(message, connection);
   });
 
   connection.send(
@@ -86,6 +103,8 @@ wsServer.on("connection", (connection) => {
       data: DB,
     })
   );
+
+  wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users: DB.users }, connection);
 });
 
 httpServer.listen(PORT);
