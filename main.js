@@ -3,6 +3,8 @@ import http from "http";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 
+import { db, getUsers } from "./server/db.js";
+
 const PORT = process.env.PORT || 3000;
 
 const MESSAGE_TYPE = {
@@ -56,7 +58,7 @@ wsServer.broadcast = (message, exception) => {
   });
 };
 
-wsServer.on("connection", (connection) => {
+wsServer.on("connection", async (connection) => {
   console.log("ws: connected");
 
   const user = generateUser();
@@ -96,11 +98,14 @@ wsServer.on("connection", (connection) => {
     wsServer.broadcast(message, connection);
   });
 
+  const usersFromMongo = await getUsers(db);
+
   connection.send(
     JSON.stringify({
       type: MESSAGE_TYPE.INIT,
       user,
       data: DB,
+      usersFromMongo: usersFromMongo,
     })
   );
 
