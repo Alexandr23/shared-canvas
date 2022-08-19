@@ -3,7 +3,11 @@ import { COLOR_SELECTION_EVENT } from "./Events.js";
 const supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 
 const NORMALIZED_SIZE = 1000;
+
 const WIDTH = 5;
+const WIDTH_MIN = 3;
+const WIDTH_MAX = 10;
+const WIDTH_TOUCH = 10;
 
 const throttle = (fn, wait) => {
   let inThrottle, lastFn, lastTime;
@@ -42,8 +46,9 @@ export class Canvas {
     this.adjustSize();
   }
 
-  init({ color }) {
-    this.color = color;
+  init({ user }) {
+    this.user = user;
+    this.color = user.color;
 
     this.addListeners();
   }
@@ -73,11 +78,25 @@ export class Canvas {
       ? {
           x: event.touches[0]?.pageX - left,
           y: event.touches[0]?.pageY - top,
+          force: event.touches[0].force,
         }
       : {
           x: event.x - left,
           y: event.y - top,
         };
+  };
+
+  getLineWidth = (point) => {
+    const lineWidth =
+      point.force === undefined ? WIDTH : WIDTH_TOUCH * point.force;
+
+      console.log(lineWidth);
+
+    return this.withinRange(lineWidth, WIDTH_MIN, WIDTH_MAX);
+  };
+
+  withinRange = (value, min, max) => {
+    return Math.min(Math.max(min, value), max);
   };
 
   handleMouseDown = (event) => {
@@ -95,12 +114,20 @@ export class Canvas {
   };
 
   mouseMove = (event) => {
+    console.log(event);
+
     if (!this.currPoint) {
       return;
     }
 
     const point = this.getPointFromEvent(event);
-    const line = { start: this.currPoint, end: point, color: this.color };
+    const line = {
+      userId: this.user.id,
+      start: this.currPoint,
+      end: point,
+      color: this.color,
+      lineWidth: this.getLineWidth(point),
+    };
     const normalizedLine = this.normalizeLine(line);
 
     this.currPoint = point;
@@ -127,11 +154,10 @@ export class Canvas {
 
   drawLine = (line, shouldScale = true) => {
     const scaledLine = shouldScale ? this.denormalizeLine(line) : line;
-    const width = WIDTH * this.scale;
 
-    const { start, end, color } = scaledLine;
+    const { start, end, color, lineWidth } = scaledLine;
 
-    this.ctx.lineWidth = width;
+    this.ctx.lineWidth = lineWidth;
     this.ctx.strokeStyle = color;
     this.ctx.lineCap = "round";
 
@@ -165,11 +191,20 @@ export class Canvas {
     return { x: point.x * this.scale, y: point.y * this.scale };
   };
 
+  normalizeLineWidth = (lineWidth) => {
+    return lineWidth / this.scale;
+  };
+
+  denormalizeLineWidth = (lineWidth) => {
+    return lineWidth * this.scale;
+  };
+
   normalizeLine = (line) => {
     return {
       ...line,
       start: this.normalizePoint(line.start),
       end: this.normalizePoint(line.end),
+      lineWidth: this.normalizeLineWidth(line.lineWidth),
     };
   };
 
@@ -178,6 +213,7 @@ export class Canvas {
       ...line,
       start: this.denormalizePoint(line.start),
       end: this.denormalizePoint(line.end),
+      lineWidth: this.denormalizeLineWidth(line.lineWidth),
     };
   };
 }

@@ -96,11 +96,9 @@ export class App {
   };
 
   handleDraw = (line) => {
-    this.lines.push({ ...line, userId: this.user.id });
+    this.lines.push(line);
 
-    this.ws.send(
-      JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, userId: this.user.id, line })
-    );
+    this.ws.send(JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, line }));
   };
 
   handleButtonClearClick = () => {
@@ -138,7 +136,7 @@ export class App {
     this.user = message.user;
     this.lines = message.lines;
 
-    this.canvas.init({ color: message.user.color });
+    this.canvas.init({ user: message.user });
     this.canvas.drawLines(this.lines);
 
     this.eventEmitter.emit(INIT_EVENT, message);

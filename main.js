@@ -77,22 +77,17 @@ wsServer.on("connection", async (connection) => {
   connection.on("message", async (data) => {
     const message = JSON.parse(data);
 
+    wsServer.broadcast(message, connection);
+
     if (message.type === MESSAGE_TYPE.DRAW) {
-      await Line.create({
-        userId: message.userId,
-        start: message.line.start,
-        end: message.line.end,
-        color: message.line.color,
-      });
+      await Line.create(message.line);
     } else if (message.type === MESSAGE_TYPE.CLEAR) {
-      await Line.remove({ userId: message.userId });
+      await Line.deleteMany({ userId: message.userId });
     } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
-      await Line.remove({});
+      await Line.deleteMany({});
     } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
       await User.findByIdAndUpdate(user.id, { color: message.color });
     }
-
-    wsServer.broadcast(message, connection);
   });
 
   const users = getOnlineUsers();

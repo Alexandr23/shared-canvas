@@ -26,6 +26,10 @@ const lineSchema = new Schema({
     type: pointSchema,
     required: true,
   },
+  lineWidth: {
+    type: Number,
+    required: true,
+  },
   color: {
     type: String,
     required: true,
