@@ -112,7 +112,7 @@ export class Canvas {
     });
   };
 
-  mouseMoveThrottled = throttle(this.mouseMove, 50);
+  mouseMoveThrottled = throttle(this.mouseMove, 20);
 
   adjustSize = () => {
     const parent = this.canvas.parentNode;
