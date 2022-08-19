@@ -11,6 +11,8 @@ connectDB();
 const PORT = process.env.PORT || 3000;
 
 const MESSAGE_TYPE = {
+  READY: "ready",
+  INIT: "init",
   INIT: "init",
   DRAW: "draw",
   CLEAR: "clear",
@@ -55,18 +57,8 @@ const getOnlineUsers = () => {
 wsServer.on("connection", async (connection) => {
   console.log("ws: connected");
 
-  const user = await User.generate();
-
-  connection.user = user;
-
-  console.log("new user", user, user.id);
-
   connection.on("close", async () => {
     console.log("ws: disconnected");
-
-    const res = await User.deleteOne({ _id: user.id });
-
-    console.log("delete user", res);
 
     wsServer.broadcast(
       { type: MESSAGE_TYPE.USERS, users: getOnlineUsers() },
@@ -77,32 +69,49 @@ wsServer.on("connection", async (connection) => {
   connection.on("message", async (data) => {
     const message = JSON.parse(data);
 
-    wsServer.broadcast(message, connection);
+    if (message.type === MESSAGE_TYPE.READY) {
+      let user;
 
-    if (message.type === MESSAGE_TYPE.DRAW) {
-      await Line.create(message.line);
-    } else if (message.type === MESSAGE_TYPE.CLEAR) {
-      await Line.deleteMany({ userId: message.userId });
-    } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
-      await Line.deleteMany({});
-    } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
-      await User.findByIdAndUpdate(user.id, { color: message.color });
+      if (message.user) {
+        user = await User.findById(message.user.id);
+      }
+
+      if (!user) {
+        user = await User.generate();
+        console.log("new user", user, user.id);
+      }
+
+      connection.user = user;
+
+      const users = getOnlineUsers();
+      const lines = await Line.find({});
+
+      connection.send(
+        JSON.stringify({
+          type: MESSAGE_TYPE.INIT,
+          user,
+          users,
+          lines,
+        })
+      );
+
+      wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users }, connection);
+    } else {
+      wsServer.broadcast(message, connection);
+
+      if (message.type === MESSAGE_TYPE.DRAW) {
+        await Line.create(message.line);
+      } else if (message.type === MESSAGE_TYPE.CLEAR) {
+        await Line.deleteMany({ userId: message.userId });
+      } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
+        await Line.deleteMany({});
+      } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
+        await User.findByIdAndUpdate(connection.user.id, {
+          color: message.color,
+        });
+      }
     }
   });
-
-  const users = getOnlineUsers();
-  const lines = await Line.find({});
-
-  connection.send(
-    JSON.stringify({
-      type: MESSAGE_TYPE.INIT,
-      user,
-      users,
-      lines,
-    })
-  );
-
-  wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users }, connection);
 });
 
 httpServer.listen(PORT);

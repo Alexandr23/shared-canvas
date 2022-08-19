@@ -15,6 +15,7 @@ const wsPort = 9000;
 const wsUrl = `${wsProtocol}://${wsHost}`;
 
 const WS_MESSAGE_TYPE = {
+  READY: "ready",
   INIT: "init",
   DRAW: "draw",
   CLEAR: "clear",
@@ -23,11 +24,14 @@ const WS_MESSAGE_TYPE = {
   COLOR_SELECTION: "color-selection",
 };
 
+const SHARED_CANVAS_USER = "SHARED_CANVAS_USER";
+
 export class App {
   constructor() {
     this.user = null;
     this.lines = [];
 
+    this.isReady = false;
     this.isInitialized = false;
   }
 
@@ -40,6 +44,7 @@ export class App {
     this.colorSelection = new ColorSelection(this.eventEmitter);
 
     this.ws = new WebSocket(wsUrl);
+    this.ws.addEventListener("open", this.handleWsOpen);
     this.ws.addEventListener("message", this.handleWsMessage);
 
     this.users = new Users(this.eventEmitter);
@@ -67,6 +72,12 @@ export class App {
     );
 
     this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
+  };
+
+  handleWsOpen = () => {
+    this.isReady = true;
+    const user = JSON.parse(localStorage.getItem(SHARED_CANVAS_USER));
+    this.ws.send(JSON.stringify({ type: WS_MESSAGE_TYPE.READY, user }));
   };
 
   handleWsMessage = (event) => {
@@ -135,6 +146,8 @@ export class App {
   handleWsMessageInit = (message) => {
     this.user = message.user;
     this.lines = message.lines;
+
+    localStorage.setItem(SHARED_CANVAS_USER, JSON.stringify(message.user));
 
     this.canvas.init({ user: message.user });
     this.canvas.drawLines(this.lines);
