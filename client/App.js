@@ -167,7 +167,7 @@ export class App {
   };
 
   clear = (userId) => {
-    this.lines = this.lines.filter((line) => line.userId === userId);
+    this.lines = this.lines.filter((line) => line.userId !== userId);
 
     this.canvas.clear();
     this.canvas.drawLines(this.lines);
