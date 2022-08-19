@@ -1,9 +1,12 @@
 import { WebSocketServer } from "ws";
 import http from "http";
 import fs from "fs";
-import { v4 as uuidv4 } from "uuid";
 
-import { db, getUsers } from "./server/db.js";
+import { connectDB } from "./server/db.js";
+import { User } from "./server/models/User.js";
+import { Line } from "./server/models/Line.js";
+
+connectDB();
 
 const PORT = process.env.PORT || 3000;
 
@@ -15,21 +18,6 @@ const MESSAGE_TYPE = {
   USERS: "users",
   COLOR_SELECTION: "color-selection",
 };
-
-// In memory DB
-const DB = {
-  users: {},
-  lines: {},
-};
-
-const getRandomHexColor = () => {
-  return "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0");
-};
-
-const generateUser = () => ({
-  id: uuidv4(),
-  color: getRandomHexColor(),
-});
 
 const httpServer = http.createServer((req, res) => {
   const isJsFile = req.url.includes(".js");
@@ -58,58 +46,68 @@ wsServer.broadcast = (message, exception) => {
   });
 };
 
+const getOnlineUsers = () => {
+  return [...wsServer.clients]
+    .map((client) => client.user)
+    .filter((user) => user);
+};
+
 wsServer.on("connection", async (connection) => {
   console.log("ws: connected");
 
-  const user = generateUser();
+  const user = await User.generate();
 
-  DB.users[user.id] = user;
-  DB.lines[user.id] = [];
+  connection.user = user;
 
-  connection.on("close", () => {
+  console.log("new user", user, user.id);
+
+  connection.on("close", async () => {
     console.log("ws: disconnected");
 
-    delete DB.users[user.id];
+    const res = await User.deleteOne({ _id: user.id });
+
+    console.log("delete user", res);
 
     wsServer.broadcast(
-      { type: MESSAGE_TYPE.USERS, users: DB.users },
+      { type: MESSAGE_TYPE.USERS, users: getOnlineUsers() },
       connection
     );
   });
 
-  connection.on("message", (data) => {
+  connection.on("message", async (data) => {
     const message = JSON.parse(data);
 
     if (message.type === MESSAGE_TYPE.DRAW) {
-      DB.lines[user.id] = DB.lines[user.id] ?? [];
-      DB.lines[user.id].push(message.line);
+      await Line.create({
+        userId: message.userId,
+        start: message.line.start,
+        end: message.line.end,
+        color: message.line.color,
+      });
     } else if (message.type === MESSAGE_TYPE.CLEAR) {
-      DB.lines[user.id] = [];
+      await Line.remove({ userId: message.userId });
     } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
-      DB.lines = {};
+      await Line.remove({});
     } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
-      if (DB.users[message.userId]) {
-        DB.users[message.userId].color = message.color;
-      }
+      await User.findByIdAndUpdate(user.id, { color: message.color });
     }
-
-    // console.log("ws: message", message);
 
     wsServer.broadcast(message, connection);
   });
 
-  const usersFromMongo = await getUsers(db);
+  const users = getOnlineUsers();
+  const lines = await Line.find({});
 
   connection.send(
     JSON.stringify({
       type: MESSAGE_TYPE.INIT,
       user,
-      data: DB,
-      usersFromMongo: usersFromMongo,
+      users,
+      lines,
     })
   );
 
-  wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users: DB.users }, connection);
+  wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users }, connection);
 });
 
 httpServer.listen(PORT);

@@ -5,6 +5,27 @@ const supportsTouch = "ontouchstart" in window || navigator.msMaxTouchPoints;
 const NORMALIZED_SIZE = 1000;
 const WIDTH = 5;
 
+const throttle = (fn, wait) => {
+  let inThrottle, lastFn, lastTime;
+  return function () {
+    const context = this,
+      args = arguments;
+    if (!inThrottle) {
+      fn.apply(context, args);
+      lastTime = Date.now();
+      inThrottle = true;
+    } else {
+      clearTimeout(lastFn);
+      lastFn = setTimeout(function () {
+        if (Date.now() - lastTime >= wait) {
+          fn.apply(context, args);
+          lastTime = Date.now();
+        }
+      }, Math.max(wait - (Date.now() - lastTime), 0));
+    }
+  };
+};
+
 export class Canvas {
   constructor(eventEmitter) {
     this.eventEmitter = eventEmitter;
@@ -70,6 +91,10 @@ export class Canvas {
   handleMouseMove = (event) => {
     event.preventDefault();
 
+    this.mouseMoveThrottled(event);
+  };
+
+  mouseMove = (event) => {
     if (!this.currPoint) {
       return;
     }
@@ -86,6 +111,8 @@ export class Canvas {
       subscriber(normalizedLine);
     });
   };
+
+  mouseMoveThrottled = throttle(this.mouseMove, 50);
 
   adjustSize = () => {
     const parent = this.canvas.parentNode;

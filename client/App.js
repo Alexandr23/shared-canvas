@@ -26,7 +26,9 @@ const WS_MESSAGE_TYPE = {
 export class App {
   constructor() {
     this.user = null;
-    this.data = null;
+    this.lines = [];
+
+    this.isInitialized = false;
   }
 
   init = () => {
@@ -68,13 +70,19 @@ export class App {
   };
 
   handleWsMessage = (event) => {
-    // console.log(event);
-
     const message = JSON.parse(event.data);
 
     if (message.type === WS_MESSAGE_TYPE.INIT) {
       this.handleWsMessageInit(message);
-    } else if (message.type === WS_MESSAGE_TYPE.DRAW) {
+      this.isInitialized = true;
+      return;
+    }
+
+    if (!this.isInitialized) {
+      return;
+    }
+
+    if (message.type === WS_MESSAGE_TYPE.DRAW) {
       this.handleWsMessageDraw(message);
     } else if (message.type === WS_MESSAGE_TYPE.CLEAR) {
       this.handleWsMessageClear(message);
@@ -88,8 +96,7 @@ export class App {
   };
 
   handleDraw = (line) => {
-    this.data.lines[this.user.id] = this.data.lines[this.user.id] ?? [];
-    this.data.lines[this.user.id].push(line);
+    this.lines.push({ ...line, userId: this.user.id });
 
     this.ws.send(
       JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, userId: this.user.id, line })
@@ -129,20 +136,16 @@ export class App {
 
   handleWsMessageInit = (message) => {
     this.user = message.user;
-    this.data = message.data;
+    this.lines = message.lines;
 
     this.canvas.init({ color: message.user.color });
-
-    Object.values(message.data.lines).forEach((lines) => {
-      this.canvas.drawLines(lines);
-    });
+    this.canvas.drawLines(this.lines);
 
     this.eventEmitter.emit(INIT_EVENT, message);
   };
 
   handleWsMessageDraw = (message) => {
-    this.data.lines[message.userId] = this.data.lines[message.userId] ?? [];
-    this.data.lines[message.userId].push(message.line);
+    this.lines.push(message.line);
 
     this.canvas.drawLine(message.line);
   };
@@ -164,16 +167,14 @@ export class App {
   };
 
   clear = (userId) => {
-    this.data.lines[userId] = [];
+    this.lines = this.lines.filter((line) => line.userId === userId);
 
     this.canvas.clear();
-    Object.values(this.data.lines).forEach((lines) => {
-      this.canvas.drawLines(lines);
-    });
+    this.canvas.drawLines(this.lines);
   };
 
   clearAll = () => {
-    this.data.lines = {};
+    this.lines = [];
 
     this.canvas.clear();
   };

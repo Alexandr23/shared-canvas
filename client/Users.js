@@ -9,6 +9,7 @@ export class Users {
     this.eventEmitter = eventEmitter;
 
     this.currentUser = document.getElementById("current-user");
+    this.currentUserName = document.getElementById("current-user-name");
     this.otherUsers = document.getElementById("other-users");
 
     this.addListeners();
@@ -20,25 +21,30 @@ export class Users {
     this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
   };
 
-  handleInit = ({ user, data }) => {
-    this.user = user
+  handleInit = ({ user, users }) => {
+    this.user = user;
 
     this.updateCurrentUser(user);
-    this.updateUsers(data.users);
+    this.updateUsers(users);
   };
 
   updateCurrentUser = (user) => {
     this.user = user;
     this.currentUser.style.backgroundColor = user.color;
+    this.currentUserName.innerHTML = user.name;
   };
 
   updateUsers = (users) => {
-    this.currentUser.style.backgroundColor = users[this.user.id].color;
+    const user = users.find(({ id }) => this.user && id === this.user.id);
+
+    if (user) {
+      this.updateCurrentUser(user);
+    }
 
     this.otherUsers.innerHTML = "";
 
-    Object.values(users)
-      .filter((user) => user.id !== this.user.id)
+    users
+      .filter(({ id }) => id !== this.user.id)
       .forEach((user) => {
         const item = document.createElement("div");
         item.className = "user";
