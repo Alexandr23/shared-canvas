@@ -39,7 +39,7 @@ export class Canvas {
 
     this.subscribers = new Set();
 
-    this.currPoint = null;
+    this.currLine = null;
     this.boundingClientRect = null;
     this.scale = 1;
 
@@ -90,8 +90,6 @@ export class Canvas {
     const lineWidth =
       point.force === undefined ? WIDTH : WIDTH_TOUCH * point.force;
 
-      console.log(lineWidth);
-
     return this.withinRange(lineWidth, WIDTH_MIN, WIDTH_MAX);
   };
 
@@ -100,11 +98,23 @@ export class Canvas {
   };
 
   handleMouseDown = (event) => {
-    this.currPoint = this.getPointFromEvent(event);
+    const startPoint = this.getPointFromEvent(event);
+
+    this.currLine = {
+      userId: this.user.id,
+      color: this.color,
+      points: [startPoint],
+    };
   };
 
   handleMouseUp = () => {
-    this.currPoint = null;
+    const normalizedLine = this.normalizeLine(this.currLine);
+
+    this.subscribers.forEach((subscriber) => {
+      subscriber(normalizedLine);
+    });
+
+    this.currLine = null;
   };
 
   handleMouseMove = (event) => {
@@ -114,29 +124,15 @@ export class Canvas {
   };
 
   mouseMove = (event) => {
-    console.log(event);
-
-    if (!this.currPoint) {
+    if (!this.currLine) {
       return;
     }
 
     const point = this.getPointFromEvent(event);
-    const line = {
-      userId: this.user.id,
-      start: this.currPoint,
-      end: point,
-      color: this.color,
-      lineWidth: this.getLineWidth(point),
-    };
-    const normalizedLine = this.normalizeLine(line);
+    const prevPoint = this.currLine.points[this.currLine.points.length - 1];
+    this.currLine.points.push(point);
 
-    this.currPoint = point;
-
-    this.drawLine(line, false);
-
-    this.subscribers.forEach((subscriber) => {
-      subscriber(normalizedLine);
-    });
+    this.drawSegment(prevPoint, point, this.currLine.color);
   };
 
   mouseMoveThrottled = throttle(this.mouseMove, 20);
@@ -152,10 +148,14 @@ export class Canvas {
     this.scale = size / NORMALIZED_SIZE;
   };
 
-  drawLine = (line, shouldScale = true) => {
-    const scaledLine = shouldScale ? this.denormalizeLine(line) : line;
+  fluctuate = (value) => {
+    return value + 1 * (Math.random() - 0.5);
+  };
 
-    const { start, end, color, lineWidth } = scaledLine;
+  drawSegment = (start, end, color) => {
+    const lineWidth = this.denormalizeLineWidth(this.getLineWidth(end));
+
+    // console.log({ lineWidth });
 
     this.ctx.lineWidth = lineWidth;
     this.ctx.strokeStyle = color;
@@ -165,6 +165,43 @@ export class Canvas {
     this.ctx.moveTo(start.x, start.y);
     this.ctx.lineTo(end.x, end.y);
     this.ctx.stroke();
+    this.ctx.closePath();
+  };
+
+  // TODO: use quadraticCurveTo
+  drawLine = (line, shouldScale = true) => {
+    const scaledLine = shouldScale ? this.denormalizeLine(line) : line;
+
+    const { points, color } = scaledLine;
+
+    // const points = scaledLine.points.map((point) => {
+    //   return {
+    //     ...point,
+    //     x: this.fluctuate(point.x),
+    //     y: this.fluctuate(point.y),
+    //   };
+    // });
+
+    this.ctx.strokeStyle = color;
+    this.ctx.lineCap = "round";
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(points[0].x, points[0].y);
+
+    points.forEach((point, i) => {
+      if (i === 0) return;
+
+      const lineWidth = this.denormalizeLineWidth(this.getLineWidth(point));
+
+      // console.log({ lineWidth });
+
+      this.ctx.lineWidth = lineWidth;
+
+      this.ctx.lineTo(point.x, point.y);
+      this.ctx.stroke();
+    });
+
+    this.ctx.closePath();
   };
 
   drawLines = (lines) => {
@@ -184,11 +221,11 @@ export class Canvas {
   };
 
   normalizePoint = (point) => {
-    return { x: point.x / this.scale, y: point.y / this.scale };
+    return { ...point, x: point.x / this.scale, y: point.y / this.scale };
   };
 
   denormalizePoint = (point) => {
-    return { x: point.x * this.scale, y: point.y * this.scale };
+    return { ...point, x: point.x * this.scale, y: point.y * this.scale };
   };
 
   normalizeLineWidth = (lineWidth) => {
@@ -202,18 +239,14 @@ export class Canvas {
   normalizeLine = (line) => {
     return {
       ...line,
-      start: this.normalizePoint(line.start),
-      end: this.normalizePoint(line.end),
-      lineWidth: this.normalizeLineWidth(line.lineWidth),
+      points: line.points.map(this.normalizePoint),
     };
   };
 
   denormalizeLine = (line) => {
     return {
       ...line,
-      start: this.denormalizePoint(line.start),
-      end: this.denormalizePoint(line.end),
-      lineWidth: this.denormalizeLineWidth(line.lineWidth),
+      points: line.points.map(this.denormalizePoint),
     };
   };
 }

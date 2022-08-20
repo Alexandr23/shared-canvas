@@ -11,6 +11,10 @@ const pointSchema = new Schema({
     type: Number,
     required: true,
   },
+  force: {
+    type: Number,
+    required: false,
+  },
 });
 
 const lineSchema = new Schema({
@@ -18,16 +22,8 @@ const lineSchema = new Schema({
     type: String,
     required: true,
   },
-  start: {
-    type: pointSchema,
-    required: true,
-  },
-  end: {
-    type: pointSchema,
-    required: true,
-  },
-  lineWidth: {
-    type: Number,
+  points: {
+    type: [pointSchema],
     required: true,
   },
   color: {
