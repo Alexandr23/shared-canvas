@@ -22,6 +22,8 @@ const WS_MESSAGE_TYPE = {
   CLEAR_ALL: "clear-all",
   USERS: "users",
   COLOR_SELECTION: "color-selection",
+  PUSH_SUBSCRIPTION: "push-subscription",
+  NOTIFY: "notify",
 };
 
 const SHARED_CANVAS_USER = "SHARED_CANVAS_USER";
@@ -30,6 +32,8 @@ export class App {
   constructor() {
     this.user = null;
     this.lines = [];
+
+    this.VAPID_PUBLIC_KEY = null;
 
     this.isReady = false;
     this.isInitialized = false;
@@ -71,7 +75,76 @@ export class App {
       this.handleButtonDownloadClick
     );
 
+    this.buttonNotify = document.getElementById("button-notify");
+    this.buttonNotify?.addEventListener("click", this.handleButtonNotifyClick);
+
     this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
+  };
+
+  initPushNotifications = async () => {
+    await this.requestPushNotificationPermission();
+    await this.registerServiceWorker();
+  };
+
+  registerServiceWorker = () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.log("ServiceWorker or/and PushManager is not supported");
+      return;
+    }
+
+    return navigator.serviceWorker
+      .register("/client/service-worker.js")
+      .then((registration) => {
+        console.log("Service worker successfully registered.");
+
+        this.subscribeForPushNotifications(registration);
+
+        return registration;
+      })
+      .catch((err) => {
+        console.error("Unable to register service worker.", err);
+      });
+  };
+
+  requestPushNotificationPermission = () => {
+    return new Promise((resolve, reject) => {
+      const permissionResult = Notification.requestPermission((result) => {
+        resolve(result);
+      });
+
+      if (permissionResult) {
+        permissionResult.then(resolve, reject);
+      }
+    }).then((permissionResult) => {
+      if (permissionResult !== "granted") {
+        throw new Error("We weren't granted permission.");
+      }
+    });
+  };
+
+  subscribeForPushNotifications = (registration) => {
+    const subscribeOptions = {
+      userVisibleOnly: true,
+      applicationServerKey: this.VAPID_PUBLIC_KEY,
+    };
+
+    return registration.pushManager.subscribe(subscribeOptions).then((ps) => {
+      const pushSubscription = JSON.parse(JSON.stringify(ps));
+
+      console.log("Received PushSubscription: ", pushSubscription);
+
+      this.ws.send(
+        JSON.stringify({
+          type: WS_MESSAGE_TYPE.PUSH_SUBSCRIPTION,
+          pushSubscription: {
+            ...pushSubscription,
+            userId: this.user.id,
+          },
+        })
+      );
+
+      return pushSubscription;
+    });
   };
 
   handleWsOpen = () => {
@@ -112,6 +185,12 @@ export class App {
     this.ws.send(JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, line }));
   };
 
+  handleButtonNotifyClick = () => {
+    this.ws.send(
+      JSON.stringify({ type: WS_MESSAGE_TYPE.NOTIFY, data: "Whazzzzup!" })
+    );
+  };
+
   handleButtonClearClick = () => {
     this.clear(this.user.id);
 
@@ -146,6 +225,7 @@ export class App {
   handleWsMessageInit = (message) => {
     this.user = message.user;
     this.lines = message.lines;
+    this.VAPID_PUBLIC_KEY = message.VAPID_PUBLIC_KEY;
 
     localStorage.setItem(SHARED_CANVAS_USER, JSON.stringify(message.user));
 
@@ -153,6 +233,12 @@ export class App {
     this.canvas.drawLines(this.lines);
 
     this.eventEmitter.emit(INIT_EVENT, message);
+
+    if (message.hasPushSubscription) {
+      console.log("already has PushSubscription");
+    } else {
+      this.initPushNotifications();
+    }
   };
 
   handleWsMessageDraw = (message) => {

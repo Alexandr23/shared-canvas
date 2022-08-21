@@ -1,14 +1,19 @@
 import { WebSocketServer } from "ws";
 import http from "http";
 import fs from "fs";
+import webPush from "web-push";
 
 import { connectDB } from "./server/db.js";
 import { User } from "./server/models/User.js";
 import { Line } from "./server/models/Line.js";
+import { PushSubscription } from "./server/models/PushSubscription.js";
 
 connectDB();
 
 const PORT = process.env.PORT || 3000;
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
 const MESSAGE_TYPE = {
   READY: "ready",
@@ -19,6 +24,8 @@ const MESSAGE_TYPE = {
   CLEAR_ALL: "clear-all",
   USERS: "users",
   COLOR_SELECTION: "color-selection",
+  PUSH_SUBSCRIPTION: "push-subscription",
+  NOTIFY: "notify",
 };
 
 const httpServer = http.createServer((req, res) => {
@@ -54,6 +61,41 @@ const getOnlineUsers = () => {
     .filter((user) => user);
 };
 
+webPush.setVapidDetails(
+  "mailto:nikiforovalex.tusur@gmail.com",
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
+
+const notify = async (data) => {
+  const pushSubsriptions = (await PushSubscription.find({})).map((r) =>
+    r.toObject()
+  );
+  const onlineUsersIds = getOnlineUsers().map((user) => user.id);
+  const pushSubsriptionsOffline = pushSubsriptions.filter(
+    ({ userId }) => !onlineUsersIds.includes(userId)
+  );
+
+  console.log("Notify", pushSubsriptionsOffline);
+
+  pushSubsriptionsOffline.forEach((ps) => {
+    const { _id, __v, id, userId, ...pushSubsription } = ps;
+
+    webPush.sendNotification(pushSubsription, data).catch((err) => {
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        console.log(
+          "Subscription has expired or is no longer valid: ",
+          err,
+          _id
+        );
+        return PushSubscription.deleteOne({ _id });
+      } else {
+        throw err;
+      }
+    });
+  });
+};
+
 wsServer.on("connection", async (connection) => {
   console.log("ws: connected");
 
@@ -71,12 +113,15 @@ wsServer.on("connection", async (connection) => {
 
     if (message.type === MESSAGE_TYPE.READY) {
       let user;
+      let pushSubscription;
 
       if (message.user) {
         user = await User.findById(message.user.id);
       }
 
-      if (!user) {
+      if (user) {
+        pushSubscription = await PushSubscription.findOne({ userId: user.id });
+      } else {
         user = await User.generate();
         console.log("new user", user, user.id);
       }
@@ -92,6 +137,8 @@ wsServer.on("connection", async (connection) => {
           user,
           users,
           lines,
+          VAPID_PUBLIC_KEY,
+          hasPushSubscription: Boolean(pushSubscription),
         })
       );
 
@@ -99,7 +146,11 @@ wsServer.on("connection", async (connection) => {
     } else {
       wsServer.broadcast(message, connection);
 
-      if (message.type === MESSAGE_TYPE.DRAW) {
+      if (message.type === MESSAGE_TYPE.PUSH_SUBSCRIPTION) {
+        await PushSubscription.create(message.pushSubscription);
+      } else if (message.type === MESSAGE_TYPE.NOTIFY) {
+        notify(message.data);
+      } else if (message.type === MESSAGE_TYPE.DRAW) {
         await Line.create(message.line);
       } else if (message.type === MESSAGE_TYPE.CLEAR) {
         await Line.deleteMany({ userId: message.userId });

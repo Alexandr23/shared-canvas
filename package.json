@@ -8,6 +8,7 @@
     "mongodb": "^4.8.1",
     "mongoose": "^6.5.2",
     "uuid": "^8.3.2",
+    "web-push": "^3.5.0",
     "ws": "^8.8.0"
   },
   "scripts": {
