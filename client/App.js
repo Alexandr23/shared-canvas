@@ -17,7 +17,10 @@ const wsUrl = `${wsProtocol}://${wsHost}`;
 const WS_MESSAGE_TYPE = {
   READY: "ready",
   INIT: "init",
-  DRAW: "draw",
+  LINE_CREATE: "line-create",
+  LINE_CREATED: "line-created",
+  LINE_REMOVED: "line-removed",
+  UNDO: "undo",
   CLEAR: "clear",
   CLEAR_ALL: "clear-all",
   USERS: "users",
@@ -78,7 +81,16 @@ export class App {
     this.buttonNotify = document.getElementById("button-notify");
     this.buttonNotify?.addEventListener("click", this.handleButtonNotifyClick);
 
+    this.buttonUndo = document.getElementById("button-undo");
+    this.buttonUndo?.addEventListener("click", this.handleButtonUndoClick);
+
     this.eventEmitter.on(COLOR_SELECTION_EVENT, this.handleColorSelection);
+  };
+
+  handleButtonUndoClick = () => {
+    this.ws.send(
+      JSON.stringify({ type: WS_MESSAGE_TYPE.UNDO, userId: this.user.id })
+    );
   };
 
   initPushNotifications = async () => {
@@ -166,8 +178,8 @@ export class App {
       return;
     }
 
-    if (message.type === WS_MESSAGE_TYPE.DRAW) {
-      this.handleWsMessageDraw(message);
+    if (message.type === WS_MESSAGE_TYPE.LINE_CREATED) {
+      this.handleWsMessageLineCreated(message);
     } else if (message.type === WS_MESSAGE_TYPE.CLEAR) {
       this.handleWsMessageClear(message);
     } else if (message.type === WS_MESSAGE_TYPE.CLEAR_ALL) {
@@ -176,13 +188,13 @@ export class App {
       this.handleWsMessageUsers(message);
     } else if (message.type === WS_MESSAGE_TYPE.COLOR_SELECTION) {
       this.handleWsMessageColorSelection(message);
+    } else if (message.type === WS_MESSAGE_TYPE.LINE_REMOVED) {
+      this.handleWsMessageLineRemoved(message);
     }
   };
 
   handleDraw = (line) => {
-    this.lines.push(line);
-
-    this.ws.send(JSON.stringify({ type: WS_MESSAGE_TYPE.DRAW, line }));
+    this.ws.send(JSON.stringify({ type: WS_MESSAGE_TYPE.LINE_CREATE, line }));
   };
 
   handleButtonNotifyClick = () => {
@@ -241,10 +253,12 @@ export class App {
     }
   };
 
-  handleWsMessageDraw = (message) => {
+  handleWsMessageLineCreated = (message) => {
     this.lines.push(message.line);
 
-    this.canvas.drawLine(message.line);
+    if (message.line.userId !== this.user.id) {
+      this.canvas.drawLine(message.line);
+    }
   };
 
   handleWsMessageClear = (message) => {
@@ -261,6 +275,13 @@ export class App {
 
   handleWsMessageColorSelection = (message) => {
     this.users.updateUserColor(message);
+  };
+
+  handleWsMessageLineRemoved = (message) => {
+    this.lines = this.lines.filter((line) => line.id !== message.line.id);
+
+    this.canvas.clear();
+    this.canvas.drawLines(this.lines);
   };
 
   clear = (userId) => {

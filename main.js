@@ -19,7 +19,10 @@ const MESSAGE_TYPE = {
   READY: "ready",
   INIT: "init",
   INIT: "init",
-  DRAW: "draw",
+  LINE_CREATE: "line-create",
+  LINE_CREATED: "line-created",
+  LINE_REMOVED: "line-removed",
+  UNDO: "undo",
   CLEAR: "clear",
   CLEAR_ALL: "clear-all",
   USERS: "users",
@@ -144,22 +147,31 @@ wsServer.on("connection", async (connection) => {
 
       wsServer.broadcast({ type: MESSAGE_TYPE.USERS, users }, connection);
     } else {
-      wsServer.broadcast(message, connection);
-
       if (message.type === MESSAGE_TYPE.PUSH_SUBSCRIPTION) {
         await PushSubscription.create(message.pushSubscription);
+        wsServer.broadcast(message, connection);
       } else if (message.type === MESSAGE_TYPE.NOTIFY) {
         notify(message.data);
-      } else if (message.type === MESSAGE_TYPE.DRAW) {
-        await Line.create(message.line);
+      } else if (message.type === MESSAGE_TYPE.LINE_CREATE) {
+        const line = await Line.create(message.line);
+        wsServer.broadcast({ type: MESSAGE_TYPE.LINE_CREATED, line });
       } else if (message.type === MESSAGE_TYPE.CLEAR) {
         await Line.deleteMany({ userId: message.userId });
+        wsServer.broadcast(message, connection);
       } else if (message.type === MESSAGE_TYPE.CLEAR_ALL) {
         await Line.deleteMany({});
+        wsServer.broadcast(message, connection);
       } else if (message.type === MESSAGE_TYPE.COLOR_SELECTION) {
         await User.findByIdAndUpdate(connection.user.id, {
           color: message.color,
         });
+        wsServer.broadcast(message, connection);
+      } else if (message.type === MESSAGE_TYPE.UNDO) {
+        const line = await Line.findOneAndDelete(
+          { userId: message.userId },
+          { sort: { createdAt: -1 } }
+        );
+        wsServer.broadcast({ type: MESSAGE_TYPE.LINE_REMOVED, line });
       }
     }
   });

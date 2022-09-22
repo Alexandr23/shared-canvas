@@ -2,17 +2,20 @@ import mongoose from "mongoose";
 
 const { Schema, model } = mongoose;
 
-const userSchema = new Schema({
-  name: {
-    type: String,
-    required: true,
+const userSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    color: {
+      type: String,
+      required: true,
+      default: "#000000",
+    },
   },
-  color: {
-    type: String,
-    required: true,
-    default: "#000000",
-  },
-});
+  { timestamps: true }
+);
 
 const FIRST_NAMES = {
   male: ["Medved", "Zayac", "Kenguru", "Homyak", "Verblud", "Petuh"],

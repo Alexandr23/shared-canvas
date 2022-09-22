@@ -17,20 +17,23 @@ const pointSchema = new Schema({
   },
 });
 
-const lineSchema = new Schema({
-  userId: {
-    type: String,
-    required: true,
+const lineSchema = new Schema(
+  {
+    userId: {
+      type: String,
+      required: true,
+    },
+    points: {
+      type: [pointSchema],
+      required: true,
+    },
+    color: {
+      type: String,
+      required: true,
+    },
   },
-  points: {
-    type: [pointSchema],
-    required: true,
-  },
-  color: {
-    type: String,
-    required: true,
-  },
-});
+  { timestamps: true }
+);
 
 lineSchema.set("toJSON", {
   virtuals: true,
