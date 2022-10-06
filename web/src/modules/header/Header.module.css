@@ -1,0 +1,25 @@
+.header {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 5px 10px;
+}
+
+.user {
+  width: 30px;
+  height: 30px;
+  border-radius: 100%;
+  background-color: #cecece;
+  border: 2px solid #ffffff;
+}
+
+.otherUsers {
+  display: flex;
+  align-items: center;
+}
+
+.otherUsers .user {
+  margin-left: -10px;
+}

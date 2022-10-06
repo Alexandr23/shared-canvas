@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-dotenv.config();
+dotenv.config({ path: "../.env" });
 
 export const connectDB = () => {
   const USER = process.env.MONGO_DB_USER;
