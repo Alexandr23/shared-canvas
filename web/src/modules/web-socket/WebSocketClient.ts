@@ -11,6 +11,8 @@ export class WebSocketClient {
 
   private eventEmitter: EventEmitter;
 
+  private queue: object[] = [];
+
   constructor(settings: WebSocketClientSettings) {
     this.ws = new WebSocket(settings.url);
 
@@ -22,6 +24,12 @@ export class WebSocketClient {
 
   private handleWsOpen = () => {
     this.isReady = true;
+
+    this.queue.forEach((message) => {
+      this.send(message);
+    });
+
+    this.queue = [];
   };
 
   private handleWsMessage = (event: MessageEvent) => {
@@ -32,7 +40,8 @@ export class WebSocketClient {
 
   public send = (message: object) => {
     if (!this.isReady) {
-      console.log("WebSocketClient: not yet ready to send messages");
+      this.queue.push(message);
+      console.log("WebSocketClient: not yet ready to send messages", message);
       return;
     }
 
