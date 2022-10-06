@@ -116,4 +116,9 @@ export class Api extends EventEmitter {
   };
 }
 
-export const api = new Api({ url: "ws://localhost:3000" });
+const isSecure = location.protocol.includes("https");
+const wsProtocol = isSecure ? "wss" : "ws";
+const wsHost = window.location.host;
+const wsUrl = `${wsProtocol}://${wsHost}`;
+
+export const api = new Api({ url: wsUrl });
